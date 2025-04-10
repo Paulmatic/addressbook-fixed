@@ -8,7 +8,11 @@ class ContactViewSet(viewsets.ModelViewSet):
     queryset = Contact.objects.all()
     serializer_class = ContactSerializer
     filter_backends = [SearchFilter]
-    search_fields = ['first_name', 'last_name', 'email', 'phone_number', 'address']
+    search_fields = [
+        'first_name', 'last_name', 'email', 
+        'phone_number', 'address', 'file_number',
+        'company'
+    ]
     
     def get_queryset(self):
         queryset = super().get_queryset()

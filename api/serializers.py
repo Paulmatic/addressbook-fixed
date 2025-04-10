@@ -13,5 +13,6 @@ class ContactSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'file_number', 'first_name', 'middle_name', 'last_name',
             'file_status', 'client_status', 'company', 'linked_clients',
-            'email', 'phone_number', 'address'
+            'email', 'phone_number', 'address', 'created_at'
         ]
+        read_only_fields = ('created_at',)
