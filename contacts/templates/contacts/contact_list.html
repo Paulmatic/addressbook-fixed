@@ -1,0 +1,47 @@
+{% extends "contacts/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container">
+    <h1>Address Book</h1>
+    
+    <div class="search-container mb-4">
+        <form method="get" action=".">
+            {% csrf_token %}
+            <div class="input-group">
+                <input type="text" class="form-control" name="q" value="{{ query }}" 
+                       placeholder="Search contacts..." id="search-input">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="submit">Search</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="results-container">
+        {% if contacts %}
+            <div class="list-group">
+                {% for contact in contacts %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h5 class="mb-1">{{ contact.first_name }} {{ contact.last_name }}</h5>
+                        <small>Rank: {{ contact.rank|default:"-" }}</small>
+                    </div>
+                    <p class="mb-1">
+                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a> | 
+                        {{ contact.phone_number }}
+                    </p>
+                    <small>{{ contact.address }}</small>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% include "contacts/pagination.html" %}
+        {% elif query %}
+            <div class="alert alert-info">No contacts found matching "{{ query }}"</div>
+        {% endif %}
+    </div>
+</div>
+
+<script src="{% static 'js/search.js' %}"></script>
+{% endblock %}

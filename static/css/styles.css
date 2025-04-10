@@ -1,0 +1,14 @@
+.search-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.list-group-item {
+    margin-bottom: 10px;
+    border-radius: 5px;
+}
+
+#search-input {
+    height: 45px;
+    font-size: 1.1rem;
+}
