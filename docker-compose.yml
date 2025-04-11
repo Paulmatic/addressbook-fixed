@@ -1,19 +1,22 @@
 
+
 services:
   web:
     build: .
-    command: python manage.py runserver 0.0.0.0:8000
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn addressbook.wsgi:application --bind 0.0.0.0:8000 --workers 4"
     volumes:
-      - .:/code
-    environment:
-      - PYTHONPATH=/code
-    ports:
-      - "8000:8000"
+      - static_volume:/code/staticfiles
+      - media_volume:/code/media
     env_file:
-      - .env
+      - .env.prod
     depends_on:
-      db:
-        condition: service_healthy
+      - db
+    networks:
+      - backend
+    restart: unless-stopped
 
   db:
     image: postgres:13
@@ -23,25 +26,55 @@ services:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - backend
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   pgadmin:
     image: dpage/pgadmin4
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@admin.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     ports:
       - "5050:80"
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - backend
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.21-alpine
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - static_volume:/code/staticfiles
+      - media_volume:/code/media
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - web
+    networks:
+      - backend
+      - frontend
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   pgadmin_data:
+  static_volume:
+  media_volume:
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge

@@ -1,82 +1,109 @@
-from django.views.generic import ListView, CreateView, UpdateView
-from django.urls import reverse_lazy
-from django.contrib.postgres.search import SearchQuery, SearchRank
-from django.db.models import Q
-from django.shortcuts import redirect
 from django.contrib import messages
+from django.contrib.postgres.search import SearchQuery, SearchRank
+from django.db.models import Count, Q
+from django.urls import reverse_lazy
+from django.views.generic import (
+    ListView, CreateView, UpdateView, DeleteView, TemplateView
+)
 from .models import Contact
+from .forms import ContactForm
 
-class ContactSearchView(ListView):
+class ContactListView(ListView):
     model = Contact
     template_name = 'contacts/contact_list.html'
-    paginate_by = 20
     context_object_name = 'contacts'
+    paginate_by = 20
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        query = self.request.GET.get('q', '').strip()
+        search_query = self.request.GET.get('q', '').strip()
         
-        if query:
-            search_query = SearchQuery(query)
+        if search_query:
             queryset = queryset.annotate(
-                rank=SearchRank('search_vector', search_query)
+                rank=SearchRank('search_vector', SearchQuery(search_query))
             ).filter(
-                Q(search_vector=search_query) |
-                Q(first_name__icontains=query) |
-                Q(last_name__icontains=query) |
-                Q(phone_number__icontains=query) |
-                Q(email__icontains=query) |
-                Q(address__icontains=query) |
-                Q(file_number__icontains=query) |
-                Q(company__icontains=query)
+                Q(search_vector=SearchQuery(search_query)) |
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(file_number__icontains=search_query)
             ).order_by('-rank', 'last_name', 'first_name')
         
         return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('q', '')
+        return context
 
 class ContactCreateView(CreateView):
     model = Contact
-    fields = '__all__'
+    form_class = ContactForm
     template_name = 'contacts/contact_form.html'
     success_url = reverse_lazy('contact-list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['clients'] = Contact.objects.all()
-        return context
-
+    
     def form_valid(self, form):
         response = super().form_valid(form)
-        
-        # Handle linked clients after main object is saved
-        linked_clients = form.cleaned_data.get('linked_clients', [])
-        try:
-            self.object.linked_clients.set(linked_clients)
-        except Exception as e:
-            messages.error(self.request, f"Error linking clients: {str(e)}")
-            return redirect('contact-create')
-        
+        messages.success(
+            self.request,
+            f"Contact '{self.object}' was created successfully."
+        )
         return response
+    
+    def form_invalid(self, form):
+        messages.error(
+            self.request,
+            "Please correct the errors below."
+        )
+        return super().form_invalid(form)
 
 class ContactUpdateView(UpdateView):
     model = Contact
-    fields = '__all__'
+    form_class = ContactForm
     template_name = 'contacts/contact_form.html'
-    success_url = reverse_lazy('contact-list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['clients'] = Contact.objects.exclude(id=self.object.id)
-        return context
-
+    
+    def get_success_url(self):
+        return reverse_lazy('contact-detail', kwargs={'pk': self.object.pk})
+    
     def form_valid(self, form):
         response = super().form_valid(form)
-        
-        # Handle linked clients after main object is saved
-        linked_clients = form.cleaned_data.get('linked_clients', [])
-        try:
-            self.object.linked_clients.set(linked_clients)
-        except Exception as e:
-            messages.error(self.request, f"Error updating linked clients: {str(e)}")
-            return redirect('contact-update', pk=self.object.id)
-        
+        messages.success(
+            self.request,
+            f"Contact '{self.object}' was updated successfully."
+        )
         return response
+    
+    def form_invalid(self, form):
+        messages.error(
+            self.request,
+            "Please correct the errors below."
+        )
+        return super().form_invalid(form)
+
+class ContactDeleteView(DeleteView):
+    model = Contact
+    template_name = 'contacts/contact_confirm_delete.html'
+    success_url = reverse_lazy('contact-list')
+    
+    def delete(self, request, *args, **kwargs):
+        response = super().delete(request, *args, **kwargs)
+        messages.success(
+            request,
+            f"Contact '{self.object}' was deleted successfully."
+        )
+        return response
+
+class ClientLinkReportView(TemplateView):
+    template_name = 'contacts/client_link_report.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        context['top_files'] = Contact.objects.annotate(
+            client_count=Count('linked_clients')
+        ).filter(client_count__gt=0).order_by('-client_count')
+        
+        context['top_clients'] = Contact.objects.annotate(
+            file_count=Count('linked_contacts')
+        ).filter(file_count__gt=0).order_by('-file_count')
+        
+        return context
