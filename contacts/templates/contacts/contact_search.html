@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Contact Search</h1>
+    
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="q" class="form-control" placeholder="Search contacts..." 
+                   value="{{ search_query|default:'' }}">
+            <button type="submit" class="btn btn-primary">Search</button>
+        </div>
+    </form>
+
+    {% if search_query %}
+    <div class="alert alert-info">
+        Showing results for: <strong>{{ search_query }}</strong>
+    </div>
+    {% endif %}
+
+    {% if contacts %}
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>File Number</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                <tr>
+                    <td>
+                        <a href="{% url 'contact-detail' contact.pk %}">
+                            {{ contact.first_name }} {{ contact.last_name }}
+                        </a>
+                    </td>
+                    <td>{{ contact.file_number }}</td>
+                    <td>{{ contact.email }}</td>
+                    <td>{{ contact.phone_number }}</td>
+                    <td>{{ contact.get_client_status_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% include "includes/pagination.html" %}
+
+    {% elif search_query %}
+    <div class="alert alert-warning">
+        No contacts found matching your search criteria.
+    </div>
+    {% else %}
+    <div class="alert alert-secondary">
+        Enter a search term to find contacts.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

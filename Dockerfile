@@ -28,15 +28,21 @@ RUN apt-get update && \
     adduser --system --ingroup appuser appuser
 
 COPY --from=builder --chown=appuser:appuser /app/wheels /wheels
-COPY --chown=appuser:appuser requirements.txt .
-
-RUN pip install --no-cache-dir --user /wheels/* && \
-    rm -rf /wheels
-
 COPY --chown=appuser:appuser . .
+
+# Install dependencies and clean up
+RUN pip install --no-cache-dir --user /wheels/* && \
+    rm -rf /wheels && \
+    python -m pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Ensure staticfiles directory exists and has correct permissions
+RUN mkdir -p /code/staticfiles && \
+    chown appuser:appuser /code/staticfiles
 
 USER appuser
 
-RUN python manage.py collectstatic --noinput
+# Collect static files
+RUN python manage.py collectstatic --noinput --clear
 
 CMD ["gunicorn", "addressbook.wsgi:application", "--bind", "0.0.0.0:8000"]

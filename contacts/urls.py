@@ -1,19 +1,20 @@
 from django.urls import path
 from .views import (
-    ContactSearchView, 
-    ContactCreateView, 
+    ContactListView,
+    ContactDetailView,
+    ContactCreateView,
     ContactUpdateView,
-    ClientLinkReportView,  # Add the new report view
-    contact_detail_view    # Add a detail view if needed
+    ContactDeleteView,
+    ContactSearchView,
+    ClientLinkReportView
 )
 
 urlpatterns = [
-    # Existing URLs
-    path('', ContactSearchView.as_view(), name='contact-list'),
+    path('', ContactListView.as_view(), name='contact-list'),
+    path('search/', ContactSearchView.as_view(), name='contact-search'),
+    path('<int:pk>/', ContactDetailView.as_view(), name='contact-detail'),
     path('add/', ContactCreateView.as_view(), name='contact-add'),
     path('<int:pk>/edit/', ContactUpdateView.as_view(), name='contact-edit'),
-    
-    # New URLs for relationship reporting
-    path('reports/relationships/', ClientLinkReportView.as_view(), name='client-link-report'),
-    path('<int:pk>/', contact_detail_view, name='contact-detail'),  # Example detail view
+    path('<int:pk>/delete/', ContactDeleteView.as_view(), name='contact-delete'),
+    path('reports/links/', ClientLinkReportView.as_view(), name='client-link-report'),
 ]
