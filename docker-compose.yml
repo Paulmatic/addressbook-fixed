@@ -1,9 +1,10 @@
+version: '3.8'
 
 services:
   web:
     build: 
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     command: >
       sh -c "python manage.py wait_for_db &&
              python manage.py migrate &&
@@ -13,7 +14,7 @@ services:
       - static_volume:/code/staticfiles
       - media_volume:/code/media
     env_file:
-      - .env.prod
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -31,26 +32,26 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-addressbook_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_HOST_AUTH_METHOD: md5
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-addressbook_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
     ports:
-      - "5433:5433"
+      - "5432:5432"
 
   pgadmin:
     image: dpage/pgadmin4
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     ports:
@@ -77,25 +78,14 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - static_volume:/code/staticfiles
       - media_volume:/code/media
-      - ./ssl:/etc/ssl/certs
     ports:
       - "80:80"
-      - "443:443"
     depends_on:
       - web
     networks:
       - backend
       - frontend
     restart: unless-stopped
-
-  certbot:
-    image: certbot/certbot
-    volumes:
-      - ./ssl:/etc/letsencrypt
-      - ./nginx/conf.d:/etc/nginx/conf.d
-    networks:
-      - frontend
-    command: certonly --webroot --webroot-path=/var/www/html --email ${CERTBOT_EMAIL} --agree-tos --no-eff-email -d ${DOMAIN_NAME} --dry-run
 
 volumes:
   postgres_data:
